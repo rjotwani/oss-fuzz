@@ -14,9 +14,38 @@
 #
 ################################################################################
 
+# FROM gcr.io/oss-fuzz-base/base-builder
+# RUN apt-get update && apt-get install -y --allow-downgrades --allow-remove-essential --allow-change-held-packages git make pkg-config autoconf autogen libtool zlib1g zlib1g-dev cmake
+# RUN git clone --depth 1 https://github.com/AcademySoftwareFoundation/openexr openexr
+# COPY build.sh $SRC/
+# COPY openexr_deepscanlines_fuzzer.cc $SRC/
+# ENV CXXFLAGS="$CXXFLAGS -D_GLIBCXX_DEBUG -I/usr/local/include"
+# ENV LDFLAGS="$LDFLAGS -L/usr/local/lib"
+# WORKDIR $WORK/
+
 FROM gcr.io/oss-fuzz-base/base-builder
-MAINTAINER your@email.com
-RUN apt-get update && apt-get install -y make autoconf automake libtool
-RUN git clone --depth 1 https://github.com/AcademySoftwareFoundation/openexr openexr
-WORKDIR openexr
+RUN apt-get update
+RUN apt-get install -y --allow-downgrades --allow-remove-essential --allow-change-held-packages git make pkg-config autoconf autogen libtool zlib1g zlib1g-dev cmake
+
+# Append -D_GLIBCXX_DEBUG to CXXFLAGS in order to use the libstdc++ debug mode
+# and perform range checks.
+ENV CXXFLAGS="$CXXFLAGS -D_GLIBCXX_DEBUG"
+ENV LDFLAGS="$LDFLAGS -L/usr/local/lib"
+RUN bash -c 'sed -i "s|^export CXXFLAGS=.*$|export CXXFLAGS=\"$CXXFLAGS\"|" /root/.bashrc'
+RUN bash -c 'sed -i "s|^export LDFLAGS=.*$|export LDFLAGS=\"$LDFLAGS\"|" /root/.bashrc'
+
 COPY build.sh $SRC/
+COPY openexr_deepscanlines_fuzzer.cc $SRC/
+
+WORKDIR /fuzzing
+RUN git clone https://github.com/openexr/openexr.git
+
+# LINT.IfChange
+ENV LD_LIBRARY_PATH="/lib/x86_64-linux-gnu"
+WORKDIR /fuzzing/openexr/build
+RUN cmake -DBUILD_TESTING=OFF -DPYILMBASE_ENABLE=OFF -DCMAKE_BUILD_TYPE=Release ..
+RUN make install
+RUN ldconfig
+# LINT.ThenChange(//depot/google3/security/fuzzing/autofuzz/rotation/alembic.Dockerfile)
+
+WORKDIR /fuzzing
