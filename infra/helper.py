@@ -145,6 +145,9 @@ def main():  # pylint: disable=too-many-branches,too-many-return-statements,too-
   coverage_parser.add_argument('--corpus-dir',
                                help='specify location of corpus'
                                ' to be used (requires --fuzz-target argument)')
+  coverage_parser.add_argument('--no-web-report',
+                               action='store_true',
+                               help='do not serve coverage report on web')
   coverage_parser.add_argument('project_name', help='name of the project')
   coverage_parser.add_argument('extra_args',
                                help='additional arguments to '
@@ -732,9 +735,12 @@ def coverage(args):
       'FUZZING_ENGINE=libfuzzer',
       'PROJECT=%s' % args.project_name,
       'SANITIZER=coverage',
-      'HTTP_PORT=%s' % args.port,
       'COVERAGE_EXTRA_ARGS=%s' % ' '.join(args.extra_args),
+      'HTTP_PORT='
   ]
+
+  if not args.no_web_report:
+    env[-1] += str(args.port)
 
   run_args = _env_to_docker_args(env)
 
@@ -751,11 +757,15 @@ def coverage(args):
   run_args.extend([
       '-v',
       '%s:/out' % _get_output_dir(args.project_name),
-      '-p',
-      '%s:%s' % (args.port, args.port),
       '-t',
       'gcr.io/oss-fuzz-base/base-runner',
   ])
+
+  if not args.no_web_report:
+    run_args.extend([
+      '-p',
+      '%s:%s' % (args.port, args.port),
+    ])
 
   run_args.append('coverage')
   if args.fuzz_target:
