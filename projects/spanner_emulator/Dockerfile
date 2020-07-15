@@ -1,4 +1,4 @@
-# Copyright 2018 Google Inc.
+# Copyright 2020 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,11 +15,13 @@
 ################################################################################
 
 FROM gcr.io/oss-fuzz-base/base-builder
-MAINTAINER esr@thyrsus.com
-RUN apt-get update && apt-get install -y make autoconf automake libtool wget zlib1g-dev
-RUN apt-get update && \
-apt-get install -y  libtool ninja-build cmake
-RUN git clone --depth=1 https://git.code.sf.net/p/giflib/code $SRC/giflib-code
-RUN git clone --depth 1 https://github.com/google/libprotobuf-mutator.git
-RUN (mkdir LPM && cd LPM && cmake ../libprotobuf-mutator -GNinja -DLIB_PROTO_MUTATOR_DOWNLOAD_PROTOBUF=ON -DLIB_PROTO_MUTATOR_TESTING=OFF -DCMAKE_BUILD_TYPE=Release && ninja)
-COPY *.c *.options build.sh *.h *.cc *.cpp *.proto $SRC/
+MAINTAINER evmaus@google.com
+RUN apt-get update && apt-get -y install make autoconf automake libtool wget openjdk-8-jdk python libunwind-dev tzdata
+
+# Install Bazelisk
+RUN wget -O /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v0.0.8/bazelisk-linux-amd64
+RUN chmod +x /usr/local/bin/bazel
+
+RUN git clone https://github.com/googleinterns/cloud-spanner-emulator-fuzzing.git fuzz
+WORKDIR fuzz
+COPY build.sh $SRC/

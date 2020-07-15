@@ -1,3 +1,4 @@
+#!/bin/bash -eu
 # Copyright 2020 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,5 +15,15 @@
 #
 ################################################################################
 
-PyGithub==1.51
-google-cloud-ndb==1.3.0
+# Prepare the project source for build.
+./synclibs.sh
+./synctestdata.sh
+./autogen.sh
+./configure --enable-shared=no
+
+# Build the project and fuzzer binaries.
+make -j$(nproc) LIB_FUZZING_ENGINE=${LIB_FUZZING_ENGINE}
+
+# Copy the fuzzer binaries and test data to the output directory.
+find ossfuzz -executable -type f -exec cp {} ${OUT} \;
+(cd tests/input/public/ && zip ${OUT}/file_fuzzer_seed_corpus.zip *)
